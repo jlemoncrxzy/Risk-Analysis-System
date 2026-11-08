@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Контроль риска партий пищевой продукции</title>
+  <meta name="description" content="Учебная система оценки риска партий пищевой продукции на основе правил, дерева решений и LLM.">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="page">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">FR</div>
+        <div>
+          <h1>Контроль риска пищевой продукции</h1>
+          <p class="subtitle">Оценка партий безалкогольного напитка по условиям хранения, перевозки и лабораторным показателям</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="status-badge" class="badge" aria-live="polite">Загрузка…</span>
+        <button id="refresh-btn" class="btn btn-ghost" type="button">Обновить</button>
+      </div>
+    </header>
+
+    <div class="disclaimer" role="note">
+      <strong>Учебный проект.</strong> Данные предоставлены для демонстрации. Оценки носят
+      учебный характер и не могут использоваться для реальных решений о безопасности
+      продукции без экспертизы специалистов.
+    </div>
+
+    <nav class="tabs" aria-label="Навигация по разделам">
+      <a href="#overview" class="tab">Обзор</a>
+      <a href="#examples" class="tab">Демо-примеры</a>
+      <a href="#registry" class="tab">Реестр партий</a>
+      <a href="#checker" class="tab">Проверка партии</a>
+      <a href="#methodology" class="tab">Методология</a>
+      <a href="/api/export.csv" class="tab tab-link">Скачать CSV</a>
+    </nav>
+
+    <section id="assistant" class="chat-section" aria-labelledby="chat-title">
+      <div class="chat-shell">
+        <div class="chat-composer">
+          <div class="chat-brand">
+            <div class="chat-spark" aria-hidden="true">AI</div>
+            <div>
+              <h2 id="chat-title">Спросите о качестве партий</h2>
+              <p class="muted small">Чат-бот по данным сайта: статистика, партии, поставщики, показатели и графики.</p>
+            </div>
+          </div>
+          <form id="chat-form" class="chat-form" autocomplete="off">
+            <input id="chat-input" type="text" maxlength="1000"
+                   placeholder="Например: покажи статистику рисков или топ-5 партий по свинцу…"
+                   aria-label="Вопрос чат-боту">
+            <button class="btn btn-primary" type="submit">Спросить</button>
+          </form>
+          <div id="chat-suggestions" class="chat-suggestions" aria-label="Примеры вопросов"></div>
+        </div>
+
+        <div id="chat-panel" class="chat-panel">
+          <div class="chat-panel-head">
+            <div class="chat-panel-title">
+              <span class="pill">Чат</span>
+              <span class="muted small">Ответы строятся по данным сайта</span>
+            </div>
+            <button id="chat-close" class="btn btn-ghost btn-small" type="button">Свернуть</button>
+          </div>
+          <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <main>
+      <section id="overview" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Обзор набора данных</h2>
+            <p class="muted" id="overview-subtitle">Загрузка статистики…</p>
+          </div>
+        </div>
+
+        <div class="stat-grid" id="stat-grid">
+          <article class="stat-card skeleton" aria-hidden="true"></article>
+          <article class="stat-card skeleton" aria-hidden="true"></article>
+          <article class="stat-card skeleton" aria-hidden="true"></article>
+          <article class="stat-card skeleton" aria-hidden="true"></article>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Распределение по уровню риска</h3>
+            <span class="muted" id="distribution-note"></span>
+          </div>
+          <div id="distribution" class="distribution">
+            <p class="muted">Загрузка…</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="examples" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Демонстрационные примеры</h2>
+            <p class="muted">
+              Не менее пяти партий, включая каждую категорию риска. Откройте карточку,
+              чтобы увидеть полный перечень факторов и объяснение.
+            </p>
+          </div>
+        </div>
+        <div id="examples-container" class="cards-grid" aria-live="polite">
+          <p class="muted">Загрузка примеров…</p>
+        </div>
+      </section>
+
+      <section id="registry" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Реестр партий</h2>
+            <p class="muted">Поиск по идентификатору, сценарию или поставщику, фильтры и сортировка.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="filters">
+            <label class="field field-search">
+              <span>Поиск</span>
+              <input id="filter-search" type="search" placeholder="AP-2025-001, опасный брак, поставщик…">
+            </label>
+            <label class="field">
+              <span>Уровень риска</span>
+              <select id="filter-risk">
+                <option value="">Все уровни</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Поставщик</span>
+              <select id="filter-supplier">
+                <option value="">Все поставщики</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Сценарий</span>
+              <select id="filter-scenario">
+                <option value="">Все сценарии</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Сортировка</span>
+              <select id="filter-sort">
+                <option value="batch">По идентификатору</option>
+                <option value="risk">Сначала высокий риск</option>
+                <option value="score">По оценке риска</option>
+                <option value="expiry">По сроку годности</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="table-wrapper">
+            <table id="batches-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Сценарий</th>
+                  <th>Поставщик</th>
+                  <th>Дней до срока</th>
+                  <th>Кислотность</th>
+                  <th>CO₂</th>
+                  <th>Свинец</th>
+                  <th>КМАФАнМ</th>
+                  <th>Оценка</th>
+                  <th>Риск</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="11" class="muted">Загрузка…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-footer">
+            <span id="table-info" class="muted"></span>
+            <div class="pagination">
+              <button id="prev-page" class="btn btn-ghost" type="button" disabled>Назад</button>
+              <span id="page-indicator" class="muted"></span>
+              <button id="next-page" class="btn btn-ghost" type="button" disabled>Вперёд</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="checker" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Проверка партии</h2>
+            <p class="muted">
+              Введите параметры партии — система присвоит уровень риска, объяснит решение
+              и предложит действие.
+            </p>
+          </div>
+        </div>
+
+        <div class="checker-layout">
+          <form id="check-form" class="panel checker-form" novalidate>
+            <div class="form-head">
+              <h3>Параметры партии</h3>
+              <button id="reset-form" class="btn btn-ghost" type="button">Сбросить</button>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>ID партии</span>
+                <input id="f-batch-id" name="batch_id" type="text" placeholder="сгенерируется автоматически">
+              </label>
+              <label class="field">
+                <span>Продукт *</span>
+                <select id="f-product" name="product_type" required></select>
+              </label>
+              <label class="field">
+                <span>Поставщик *</span>
+                <select id="f-supplier" name="supplier" required></select>
+              </label>
+              <label class="field">
+                <span>Заключение лаборатории</span>
+                <select id="f-lab" name="lab_conclusion">
+                  <option>Соответствует</option>
+                  <option>Условно годен (Риск)</option>
+                  <option>Требует проверки (Нестабильно)</option>
+                  <option>Не соответствует (Брак)</option>
+                  <option>Не соответствует (Опасно)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Дата выпуска</span>
+                <input id="f-production" name="production_date" type="date">
+              </label>
+              <label class="field">
+                <span>Срок годности до *</span>
+                <input id="f-expiry" name="expiry_date" type="date" required>
+              </label>
+              <label class="field">
+                <span>Температура хранения, °C *</span>
+                <input id="f-storage" name="storage_temp_c" type="number" step="0.1" value="9" required>
+              </label>
+              <label class="field">
+                <span>Температура перевозки, °C *</span>
+                <input id="f-transport" name="transport_temp_c" type="number" step="0.1" value="9" required>
+              </label>
+              <label class="field">
+                <span>Сухие вещества, %</span>
+                <input id="f-dry" name="dry_matter_pct" type="number" step="0.1" value="10.0">
+              </label>
+              <label class="field">
+                <span>Кислотность, см³</span>
+                <input id="f-acidity" name="acidity_cm3" type="number" step="0.1" value="2.1">
+              </label>
+              <label class="field">
+                <span>CO₂, %</span>
+                <input id="f-co2" name="co2_mass_pct" type="number" step="0.01" value="0.5">
+              </label>
+              <label class="field">
+                <span>Свинец, мг/кг</span>
+                <input id="f-lead" name="lead_mg_kg" type="number" step="0.0001" value="0.002">
+              </label>
+              <label class="field">
+                <span>Кадмий, мг/кг</span>
+                <input id="f-cadmium" name="cadmium_mg_kg" type="number" step="0.0001" value="0.001">
+              </label>
+              <label class="field">
+                <span>Мышьяк, мг/кг</span>
+                <input id="f-arsenic" name="arsenic_mg_kg" type="number" step="0.0001" value="0.0015">
+              </label>
+              <label class="field">
+                <span>КМАФАнМ, КОЕ/см³</span>
+                <input id="f-kmafanm" name="kmafanm_cfu_cm3" type="number" step="1" value="15">
+              </label>
+              <label class="field">
+                <span>БГКП, КОЕ/см³</span>
+                <input id="f-bgkp" name="bgkp_cfu_cm3" type="number" step="1" value="0">
+              </label>
+              <label class="field">
+                <span>Дрожжи, КОЕ/см³</span>
+                <input id="f-yeast" name="yeast_cfu_cm3" type="number" step="1" value="5">
+              </label>
+              <label class="field">
+                <span>Плесень, КОЕ/см³</span>
+                <input id="f-mold" name="mold_cfu_cm3" type="number" step="1" value="2">
+              </label>
+            </div>
+
+            <label class="checkbox">
+              <input id="f-use-llm" type="checkbox" checked>
+              Сгенерировать объяснение через LLM (при недоступности — rule-based)
+            </label>
+
+            <p id="form-error" class="form-error" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary">Оценить риск</button>
+          </form>
+
+          <div id="check-result" class="result-pane">
+            <div class="empty-state">
+              <div class="empty-icon" aria-hidden="true">✓</div>
+              <p>Заполните параметры партии и нажмите «Оценить риск».</p>
+              <p class="muted small">Карточка с факторами риска появится здесь.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="methodology" class="section">
+        <div class="section-head">
+          <div>
+            <h2>Как устроена оценка</h2>
+            <p class="muted">Прозрачная логика решения и деградация LLM без потери результата.</p>
+          </div>
+        </div>
+
+        <div class="method-grid">
+          <article class="panel method-card">
+            <h3>1. Логические правила</h3>
+            <ul class="method-list">
+              <li><strong>Просрочка или температура вне 0–18 °C</strong> → высокий риск.</li>
+              <li><strong>Свинец &gt; 0.05 мг/кг, БГКП &gt; 0</strong> или заключение «Опасно»/«Брак» → высокий риск.</li>
+              <li>Кислотность &gt; 2.5 см³, CO₂ вне 0.4–0.6%, повышенные дрожжи или плесень → средний риск.</li>
+              <li>Факторы суммируются в оценку 0–100; порог высокого риска — 70, среднего — 15.</li>
+            </ul>
+            <p class="muted small">Жёсткие нарушения не могут попасть в группу низкого риска.</p>
+          </article>
+
+          <article class="panel method-card">
+            <h3>2. Дерево решений</h3>
+            <p class="muted small">
+              Классификатор <code>DecisionTreeClassifier</code> обучается на 1500 партиях
+              при старте приложения и показывает «второе мнение» рядом с правилами.
+            </p>
+            <div id="model-info" class="model-info muted small">Загрузка…</div>
+          </article>
+
+          <article class="panel method-card">
+            <h3>3. LLM и fallback</h3>
+            <ol class="method-list method-list-numbered">
+              <li>GigaChat, если заданы учётные данные.</li>
+              <li>Локальная open-source модель (Qwen и др.), если включена <code>USE_LOCAL_LLM</code>.</li>
+              <li>Rule-based объяснение движка — всегда доступно.</li>
+            </ol>
+            <div id="llm-info" class="model-info muted small">Загрузка…</div>
+          </article>
+        </div>
+
+        <div class="panel action-map">
+          <h3>Рекомендованные действия</h3>
+          <div class="action-grid">
+            <div class="action-item risk-low">
+              <span class="risk-tag low">Низкий риск</span>
+              <strong>допустить к реализации</strong>
+              <p class="muted small">Все ключевые параметры в пределах нормы.</p>
+            </div>
+            <div class="action-item risk-medium">
+              <span class="risk-tag medium">Средний риск</span>
+              <strong>направить на дополнительную проверку</strong>
+              <p class="muted small">Есть пограничные значения или отдельные отклонения.</p>
+            </div>
+            <div class="action-item risk-high">
+              <span class="risk-tag high">Высокий риск</span>
+              <strong>временно изолировать партию</strong>
+              <p class="muted small">Просрочка или критическое нарушение температурного режима.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span>Учебный проект «ИИ для контроля качества пищевой продукции»</span>
+      <span class="muted">FastAPI · scikit-learn · GigaChat / локальная LLM</span>
+    </footer>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" type="button" data-close-modal aria-label="Закрыть">×</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="/static/script.js" defer></script>
+</body>
+</html>

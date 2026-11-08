@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Симулякрум — контроль риска партий</title>
+  <meta name="description" content="Чат с ИИ-агентом, панель администратора, история проверок и уведомления системы контроля качества.">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="logo" href="#chat" aria-label="Симулякрум">
+        <span class="logo-mark" aria-hidden="true">S</span>
+        <span class="logo-text">Симулякрум</span>
+      </a>
+
+      <div class="topbar-right">
+        <nav class="topnav" aria-label="Основная навигация">
+          <a href="#dashboard" data-nav="dashboard">Панель администратора</a>
+          <a href="#chat" data-nav="chat">Чат с ИИ-агентом</a>
+          <a href="#history" data-nav="history">История</a>
+        </nav>
+        <a href="#notifications" class="bell" data-nav="notifications" aria-label="Уведомления">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <span id="notif-badge" class="notif-badge" hidden>0</span>
+        </a>
+        <div class="user-avatar" title="Администратор">АС</div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- ============================== CHAT ============================== -->
+      <section id="view-chat" class="view" aria-labelledby="chat-title">
+        <div class="chat-layout">
+          <aside class="agent-sidebar">
+            <p class="sidebar-label">Активный агент</p>
+            <div id="agent-list" class="agent-list"></div>
+            <div id="agent-profile" class="agent-profile"></div>
+            <button id="sidebar-new-check" class="sidebar-action" type="button">+ Новая проверка партии</button>
+          </aside>
+
+          <section class="chat-stage">
+            <div class="view-head chat-head">
+              <div>
+                <h1 id="chat-title">Чат с агентом</h1>
+                <p class="muted">Анализ риска, показателей и решений по партиям</p>
+              </div>
+              <span class="sync"><i class="dot"></i>Последняя синхронизация: <span id="sync-time">—</span></span>
+            </div>
+
+            <div id="chat-thread" class="chat-thread" aria-live="polite"></div>
+
+            <div class="chat-composer">
+              <button id="chat-plus" class="square-btn" type="button" title="Новая проверка">+</button>
+              <input id="chat-input" type="text" maxlength="1000"
+                     placeholder="Спросите о поставщиках, партиях или показателях..."
+                     aria-label="Запрос агенту" autocomplete="off">
+              <button id="chat-send" class="send-btn" type="button">
+                Отправить
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 21 3l-8 18-2-7-8-3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+            <div class="chat-input-help">
+              <span>По умолчанию — только текст.</span>
+              <span>Таблицы — для статистики или по маркеру <code>(таблица)</code>; графики — <code>(график)</code>, <code>(диаграмма)</code>, <code>(виджет)</code>.</span>
+            </div>
+            <div id="chat-suggestions" class="chat-suggestions" aria-label="Примеры запросов"></div>
+          </section>
+
+          <aside class="summary-panel">
+            <div class="summary-title">
+              <h2>Сводка по запросу</h2>
+              <span id="summary-level" class="risk-pill" hidden>—</span>
+            </div>
+            <div id="summary-content" class="summary-content"></div>
+
+            <div class="summary-actions">
+              <button id="summary-export" class="wide-btn primary" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Экспорт отчёта
+              </button>
+              <button id="summary-notify" class="wide-btn warn" type="button">
+                ⚠ Уведомить команду
+              </button>
+              <button id="summary-repeat" class="wide-btn ghost" type="button">
+                ↻ Повторить анализ
+              </button>
+            </div>
+
+            <div class="system-logs">
+              <h3>Системные логи</h3>
+              <ul id="system-logs"></ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============================ DASHBOARD =========================== -->
+      <section id="view-dashboard" class="view" aria-labelledby="dash-title">
+        <div class="view-head">
+          <div>
+            <h1 id="dash-title">Панель администратора</h1>
+            <p class="muted">Контроль качества · сводка по всем производственным партиям</p>
+          </div>
+          <div class="head-actions">
+            <span id="dash-period" class="date-pill">—</span>
+            <button id="dash-export" class="action-btn primary" type="button">⭳ Экспорт отчёта</button>
+            <button id="dash-new-check" class="action-btn" type="button">+ Проверка</button>
+          </div>
+        </div>
+
+        <div id="dash-stats" class="stat-row"></div>
+
+        <div class="dash-grid dash-grid-2">
+          <article class="panel chart-panel">
+            <div class="panel-head">
+              <h3>Динамика брака по дням</h3>
+              <span class="legend"><i class="line-legend"></i>Доля брака, %</span>
+            </div>
+            <div id="dash-line" class="line-chart-area"></div>
+          </article>
+
+          <article class="panel donut-panel">
+            <div class="panel-head">
+              <h3>Распределение статусов</h3>
+            </div>
+            <div id="dash-donut" class="donut-area"></div>
+            <p id="dash-donut-note" class="muted small"></p>
+          </article>
+        </div>
+
+        <div class="dash-grid dash-grid-2">
+          <article class="panel">
+            <div class="panel-head">
+              <h3>Топ причины брака</h3>
+              <span id="dash-defects" class="muted small"></span>
+            </div>
+            <div id="dash-reasons" class="reasons-list"></div>
+            <p class="hint">Для каждой партии указана основная причина брака</p>
+          </article>
+
+          <article id="dash-risk" class="panel risk-highlight"></article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h3>Демонстрационные примеры</h3>
+            <span class="muted small">5+ партий, все уровни риска</span>
+          </div>
+          <div id="dash-examples" class="example-strip"></div>
+        </article>
+      </section>
+
+      <!-- ============================= HISTORY ============================ -->
+      <section id="view-history" class="view" aria-labelledby="history-title">
+        <div class="view-head">
+          <div>
+            <h1 id="history-title">История</h1>
+            <p class="muted">Все проверки партий, оценки риска и решения операторов</p>
+          </div>
+          <button id="history-export" class="action-btn primary" type="button">⭳ Экспорт истории</button>
+        </div>
+
+        <div class="panel filters-row">
+          <label class="filter">
+            <span>Период</span>
+            <span class="date-range">
+              <input id="hist-date-from" type="date" aria-label="Дата с">
+              <input id="hist-date-to" type="date" aria-label="Дата по">
+            </span>
+          </label>
+          <label class="filter">
+            <span>Статус партии</span>
+            <select id="hist-status">
+              <option value="">Все статусы</option>
+              <option value="низкий">Одобрено</option>
+              <option value="средний">Имеются дефекты</option>
+              <option value="высокий">Брак</option>
+            </select>
+          </label>
+          <label class="filter grow">
+            <span>Поиск по партии или оператору</span>
+            <input id="hist-search" type="search" placeholder="Номер партии или имя оператора">
+          </label>
+          <button id="hist-apply" class="action-btn primary" type="button">Применить</button>
+          <button id="hist-reset" class="action-btn ghost" type="button">Сбросить</button>
+        </div>
+
+        <div class="panel table-panel">
+          <div class="table-head">
+            <h3>Проверки партий <span id="hist-count" class="count-pill">0</span></h3>
+            <span class="sync"><i class="dot"></i>Обновлено <span id="hist-updated">—</span></span>
+          </div>
+          <div class="table-scroll">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Партия</th>
+                  <th>Статус</th>
+                  <th>Риск брака</th>
+                  <th>Оператор</th>
+                </tr>
+              </thead>
+              <tbody id="hist-body">
+                <tr><td colspan="5" class="muted">Загрузка…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="hist-info" class="muted"></span>
+            <div class="pagination">
+              <button id="hist-prev" class="page-btn" type="button" aria-label="Назад">‹</button>
+              <div id="hist-pages" class="pages"></div>
+              <button id="hist-next" class="page-btn" type="button" aria-label="Вперёд">›</button>
+            </div>
+          </div>
+        </div>
+        <p class="hint">История сохраняется автоматически. Время проверок указано по Москве.</p>
+      </section>
+
+      <!-- =========================== NOTIFICATIONS ======================== -->
+      <section id="view-notifications" class="view" aria-labelledby="notif-title">
+        <div class="view-head">
+          <div>
+            <h1 id="notif-title">Уведомления</h1>
+            <p class="muted">Системные предупреждения, риски брака и события контроля качества</p>
+          </div>
+          <button id="notif-read-all" class="action-btn ghost" type="button">✓ Отметить все прочитанными</button>
+        </div>
+
+        <div class="notif-toolbar">
+          <div id="notif-tabs" class="segmented" role="tablist">
+            <button class="active" data-notif-filter="all" type="button">Все <span id="notif-count-all">0</span></button>
+            <button data-notif-filter="unread" type="button">Непрочитанные <span id="notif-count-unread">0</span></button>
+            <button data-notif-filter="read" type="button">Прочитанные <span id="notif-count-read">0</span></button>
+          </div>
+          <div class="notif-tools">
+            <span class="sync"><i class="dot"></i>Обновлено <span id="notif-updated">—</span></span>
+            <select id="notif-period">
+              <option value="7">За 7 дней</option>
+              <option value="30">За 30 дней</option>
+              <option value="all">За всё время</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="notif-summary" class="muted small"></div>
+        <div id="notif-list" class="notif-list"></div>
+        <p class="hint">Уведомления сохраняются автоматически. Время событий указано по Москве.</p>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-window" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" type="button" data-close-modal aria-label="Закрыть">×</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

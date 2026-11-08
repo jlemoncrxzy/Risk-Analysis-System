@@ -1,0 +1,8 @@
+# Базовые зависимости (приложение работает без LLM, на rule-based объяснениях)
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pandas==2.3.3
+scikit-learn==1.5.2
+python-dotenv==1.0.1
+openpyxl==3.1.5
+httpx==0.28.1

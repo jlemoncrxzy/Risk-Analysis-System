@@ -1,0 +1,11 @@
+# Опциональные зависимости для LLM.
+# Нужны для локального fallback, GigaChat и работы с Yandex AI Studio.
+# После установки скачайте модель: python scripts/download_local_llm.py
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+gigachat==0.1.10
+llama-cpp-python==0.3.36
+torch>=2.6.0
+transformers>=4.45.0
+accelerate>=1.0.0
+safetensors>=0.4.0
+huggingface_hub>=0.24.0
